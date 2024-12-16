@@ -1,11 +1,7 @@
 <html>
 	<head>
-		<title>Dark City</title>
+		<title>Lamp Labyrinth</title>
 		<style>
-			@font-face {
-                font-family: Fixedsys;
-                src: url(FSEX300.ttf);
-            }
 			body{
 				background-color:#000;
 				text-align: center;
@@ -66,7 +62,7 @@
             var EXIT = "ᛳ";  //">";
             var LAMP = "ᛳ";
             var SHADOW = " ";
-            var font = "sans serif";
+            var font = "Consolas";
 
             var player = {
                 x:labDim[0]/2,
@@ -466,6 +462,9 @@
                 clearInterval(mi);
                 mi = setInterval(mon_step, player.hp*400);
                 gameover = false;
+
+                // focus on canvas immediately
+                canvas.focus();
             }
 
             // move player and take actions
@@ -540,10 +539,11 @@
                 }
             });
 
+            
             //prevent scrolling with the game
             window.addEventListener("keydown", function(e) {
                 // space and arrow keys
-                if(([32, 37, 38, 39, 40].indexOf(e.code) > -1)){
+                if(([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1)){
                     e.preventDefault();
                 }
             }, false);
