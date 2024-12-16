@@ -1,0 +1,554 @@
+<html>
+	<head>
+		<title>Dark City</title>
+		<style>
+			@font-face {
+                font-family: Fixedsys;
+                src: url(FSEX300.ttf);
+            }
+			body{
+				background-color:#000;
+				text-align: center;
+			}
+			#game{
+				width:640px;
+				height:480px;
+				border:2px solid #fff;
+				background-color:#000;
+				padding-left: 0;
+				padding-right: 0;
+				margin-left: auto;
+				margin-right: auto;
+				margin-top: 20px;
+
+				/* scale up pixels */
+				image-rendering: -moz-crisp-edges;
+		        image-rendering: -webkit-crisp-edges;
+		        image-rendering: pixelated;
+		        image-rendering: crisp-edges;
+			}
+		</style>
+	</head>
+	<body onload="init()">
+		<canvas id='game'>Browser does not support HTML5 canvas</canvas>
+		<!-- <div id="debugBar"><p id="debug" style="color:white">...</p></div> -->
+		<script>
+
+            var canvas = document.getElementById('game');
+            var ctx = canvas.getContext('2d');
+            canvas.width = 640;
+            canvas.height = 480;
+
+            var can_step = true;
+            // directionals
+            var upKey = "ArrowUp";     
+            var leftKey = "ArrowLeft";   
+            var rightKey = "ArrowRight";  
+            var downKey = "ArrowDown";   
+            var moveKeySet = [upKey, leftKey, rightKey, downKey];   
+
+            // A and b
+            var z_key = "KeyZ";         //[Z]
+            var reset_key = "KeyR";     //[R]
+            var actionKeySet = [z_key, reset_key];
+
+            var keys = [];
+
+            var labMap = []
+            var labDim = [80,60];
+            var ps = 28;
+            let ps2 = ps+2;
+
+            var FLOOR = '.';
+            var HOR = '―';
+            var VER = '|';
+            var BORDER = "+";
+            var EXIT = "ᛳ";  //">";
+            var LAMP = "ᛳ";
+            var SHADOW = " ";
+            var font = "sans serif";
+
+            var player = {
+                x:labDim[0]/2,
+                y:labDim[1]/2,
+                hp:3
+            }
+            var exits = [];
+            var floors = [];
+            var monsters = [];
+            var numMonsters = Math.ceil((labDim[0]*labDim[1])/100);
+            let mi = -1;
+
+            let gameover = false;
+
+            var camera = {
+                x : player.x,
+                y : player.y
+            };
+
+            class Shadow{
+                constructor(x,y){
+                    this.x = x;
+                    this.y = y;
+                }
+
+                // move in direction
+                move(d){
+                    if(d == 0){
+                        this.y--;
+                    }else if(d == 1){
+                        this.x++;
+                    }else if(d == 2){
+                        this.y++;
+                    }else if(d == 3){
+                        this.x--;
+                    }
+                }
+
+                moveTo(p){
+                    let dx = p.x - this.x;
+                    let dy = p.y - this.y;
+                    let adx = Math.abs(dx);
+                    let ady = Math.abs(dy);
+
+                    if(adx < 10 || ady < 10){
+                        if(adx > ady){
+                            if(dx > 0){
+                                this.move(1);
+                            }else{
+                                this.move(3);
+                            }
+                        }else{
+                            if(dy > 0){
+                                this.move(2);
+                            }else{
+                                this.move(0);
+                            }
+                        }
+                    }else{
+                        let r = randInt(0,3);
+                        let c = randInt(0,4);
+                        if(c != 0)
+                            return
+                        else
+                            this.move(r);
+                    }
+
+                    this.touching(p);
+                }
+
+                touching(p){
+                    if(this.x == p.x && this.y == p.y){
+                        p.hp--;
+                        //goto random position
+                        let rfloor = randFloor();
+                        this.x = rfloor.x;
+                        this.y = rfloor.y;
+                        clearInterval(mi);
+                        mi = setInterval(mon_step, (player.hp*400)+200);
+                    }
+
+                }
+            }
+
+
+            ////// GENERAL FUNCTIONS //////
+
+            // random number between a-b
+            function randInt(a,b){
+                return Math.floor(Math.random() * (b-a+1)) + a;
+            }
+
+            // check if value is in array
+            function inArr(arr, val){
+                return arr.indexOf(val) > -1;
+            }
+
+            // check if out of bounds
+            function oob(x,y){
+                return x < 0 || x >= labDim[0] || y < 0 || y >= labDim[1];
+            }
+
+            // randomize array
+            function shuffle(arr){
+                for(let i=0;i<arr.length;i++){
+                    let r = randInt(0,arr.length-1);
+                    let temp = arr[i];
+                    arr[i] = arr[r];
+                    arr[r] = temp;
+                }
+            }
+
+            
+            ///// CONTROL FUNCTIONS /////
+
+            function movePlayer(){
+
+                // get the new positions based on the key direction
+                let new_pos = {x: player.x, y: player.y};
+                if(keys[upKey]){
+                    new_pos.y -= 1;
+                }else if(keys[downKey]){
+                    new_pos.y += 1;
+                }else if(keys[leftKey]){
+                    new_pos.x -= 1;
+                }else if(keys[rightKey]){
+                    new_pos.x += 1;
+                }else if(keys[z_key]){
+                    // teleport to a random location
+                    let rfloor = randFloor();
+                    new_pos.x = rfloor.x;
+                    new_pos.y = rfloor.y;
+                }else if(keys[reset_key]){
+                    init();
+                }
+
+                // check the action from taking the position
+                let pos = labMap[new_pos.y][new_pos.x];
+                if(pos == FLOOR){									// move to a floor tile
+                    player.x = new_pos.x;
+                    player.y = new_pos.y;
+                    return "moved";
+                }else if(pos == HOR || pos == VER){					// move to a wall
+                    // do nothing
+                    return "wall";
+                }else if(isExit(new_pos.x,new_pos.y)){							// move to an exit
+                    player.x = new_pos.x;
+                    player.y = new_pos.y;
+                    return "exit";
+                }
+            }
+
+            ////// PCG FUNCTIONS //////
+            
+            // populate the labyrinth
+            function populateLab(){
+                // create empty map
+                for(var y = 0; y < labDim[1]; y++){
+                    labMap[y] = [];
+                    for(var x = 0; x < labDim[0]; x++){
+                        labMap[y][x] = FLOOR;
+                    }
+                }
+
+                exits = [];
+
+                // create worm to tunnel through the labyrinth creating paths
+                var worm = {x:labDim[0]/2, y:labDim[1]/2, dir:randInt(0,3),ct:0};
+                
+                for(let i=0;i<labDim[0]*labDim[1];i++){
+                    
+                    if(worm.ct > 5){
+                        worm.ct = 0;
+                        worm.dir = randInt(0,3);
+                    }
+                    worm.ct++;
+
+                    if(worm.dir == 0){
+                        worm.y--;
+                    }else if(worm.dir == 1){
+                        worm.x++;
+                    }else if(worm.dir == 2){
+                        worm.y++;
+                    }else if(worm.dir == 3){
+                        worm.x--;
+                    }
+
+                    // change surrounding walls
+                    if(worm.dir == 0 || worm.dir == 2){
+                        if(!oob(worm.x-1,worm.y) && !oob(worm.x+1,worm.y)){
+                            if(labMap[worm.y][worm.x-1] == FLOOR){
+                                labMap[worm.y][worm.x-1] = VER;
+                            }else{
+                                labMap[worm.y][worm.x-1] = FLOOR;
+                            }
+                            if(labMap[worm.y][worm.x+1] == FLOOR){
+                                labMap[worm.y][worm.x+1] = VER;
+                            }else{
+                                labMap[worm.y][worm.x+1] = FLOOR;
+                            }
+                            
+                        }
+                        
+                    }else if(worm.dir == 1 || worm.dir == 3){
+                        if(!oob(worm.x,worm.y-1) && !oob(worm.x,worm.y+1)){
+                            if(labMap[worm.y-1][worm.x] == FLOOR){
+                                labMap[worm.y-1][worm.x] = HOR;
+                            }else{
+                                labMap[worm.y-1][worm.x] = FLOOR;
+                            }
+                            if(labMap[worm.y+1][worm.x] == FLOOR){
+                                labMap[worm.y+1][worm.x] = HOR;
+                            }else{ 
+                                labMap[worm.y+1][worm.x] = FLOOR;
+                            }
+                        }
+                    }
+
+                    // oob check
+                    if(oob(worm.x,worm.y)){
+                        worm.x = randInt(0,labDim[0]-1);
+                        worm.y = randInt(0,labDim[1]-1);
+                    }else{
+                        labMap[worm.y][worm.x] = FLOOR;
+                    }
+                }
+                
+
+                // set border
+                for(var y = 0; y < labDim[1]; y++){
+                    for(var x = 0; x < labDim[0]; x++){
+                        if(x == 0 || x == labDim[0]-1 || y == 0 || y == labDim[1]-1){
+                            labMap[y][x] = BORDER;
+                        }
+                    }
+                }
+
+                // make exits
+                for(let e=0;e<3;e++){
+                    let ex = {x:randInt(1,labDim[0]-2), y:randInt(1,labDim[1]-2)};
+                    while(labMap[ex.y][ex.x] != FLOOR){
+                        ex = {x:randInt(1,labDim[0]-2), y:randInt(1,labDim[1]-2)};
+                    }
+                    exits.push(ex);
+                    labMap[ex.y][ex.x] = EXIT;
+                }
+
+                // add all floors
+                for(let y=0;y<labDim[1];y++){
+                    for(let x=0;x<labDim[0];x++){
+                        if(labMap[y][x] == FLOOR){
+                            floors.push({x:x,y:y});
+                        }
+                    }
+                }
+
+                // add random lamps
+                shuffle(floors);
+                let numLamps = Math.floor((labDim[0]*labDim[1])/100);
+                for(let l=0;l<numLamps;l++){
+                    let lamp = floors.pop();
+                    labMap[lamp.y][lamp.x] = LAMP;
+
+                }
+
+                // add monsters
+                for(let m=0;m<numMonsters;m++){
+                    let monPos = randFloor();
+                    let m = new Shadow(monPos.x,monPos.y);
+                    monsters.push(m);
+                }
+            }
+
+            function randFloor(){
+                return floors[randInt(0,floors.length-1)];
+            }
+
+            function isExit(x,y){
+                for(let i=0;i<exits.length;i++){
+                    if(exits[i].x == x && exits[i].y == y){
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            function isMonster(x,y){
+                for(let i=0;i<monsters.length;i++){
+                    if(monsters[i].x == x && monsters[i].y == y){
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+
+            ////// RENDER FUNCTIONS //////
+
+            let xlim = [Math.floor(canvas.width/ps2)/2-1, labDim[0]-(Math.floor(canvas.width/ps2)/2)];
+            let ylim = [Math.floor(canvas.height/ps2)/2-1, labDim[1]-(Math.floor(canvas.height/ps2)/2)];
+            function boundCamera(){
+                
+                if(player.x < xlim[0])
+                    camera.x = xlim[0];
+                else if(player.x > xlim[1])
+                    camera.x = xlim[1];
+                else
+                    camera.x = player.x;
+
+                if(player.y < ylim[0])
+                    camera.y = ylim[0];
+                else if(player.y > ylim[1])
+                    camera.y = ylim[1];
+                else
+                    camera.y = player.y;
+                
+                // camera.x = player.x;
+                // camera.y = player.y;
+            }
+
+            // draw the labyrinth
+            
+            
+            function render(){
+                ctx.save();
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // move camera to player but stop at edges
+                boundCamera();
+
+                ctx.translate(-camera.x*ps2+canvas.width/2, -camera.y*ps2+canvas.height/2);
+
+                //draw background
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // draw map and entities
+                ctx.fillStyle = '#fff';
+                ctx.font = ps+'px '+font;
+                ctx.textAlign = 'center';
+
+                let cx = 0;
+                let cy = 0;
+                let hp = player.hp;
+
+                for(var y = 0; y < labMap.length; y++){
+                    for(var x = 0; x < labMap[y].length; x++){
+                        if(player.x == x && player.y == y){
+                            ctx.fillStyle = "#fff";
+                            ctx.fillRect((cx+x*ps2)-(ps2/2)+1, (cy+y*ps2)-(ps2/2)-3, ps, ps);
+                            ctx.fillStyle = "#000";
+                            ctx.fillText("@", cx+x*ps2, cy+y*ps2+3);
+                        }
+                        else{
+                            if(isExit(x,y)){
+                                ctx.fillStyle = "#ffd133";
+                            }else if(isMonster(x,y)){
+                                ctx.fillStyle = "#000";
+                            }
+                            // darken map with lower hp
+                            else{
+                                let dark_level = Math.floor(255*(hp/4));
+                                ctx.fillStyle = `rgb(${dark_level},${dark_level},${dark_level})`;
+                            }
+                            ctx.fillText(labMap[y][x], cx+x*ps2, cy+y*ps2);
+                        }
+                    }
+                }
+
+                ctx.restore();
+            }
+
+            function full_render(){
+
+                // show end screen
+                if(gameover){
+                    if(player.hp <= 0)
+                        end_screen();
+                    else
+                        win_screen();
+                }else 
+                    render();
+
+                //document.getElementById("debug").innerHTML = "POS: "+player.x+","+player.y+" HP: "+player.hp;
+            }
+
+            // populate map
+            function init(){
+                populateLab();
+                player.hp = 3;
+                let rpos = randFloor();
+                player.x = rpos.x;
+                player.y = rpos.y;
+                camera.x = player.x;
+                camera.y = player.y;
+                render();
+                clearInterval(mi);
+                mi = setInterval(mon_step, player.hp*400);
+                gameover = false;
+            }
+
+            // move player and take actions
+            function play_step(){
+                // player state
+	            let action = movePlayer();
+                if(action == "exit")
+                    gameover = true;
+
+                full_render();
+            }
+
+            // monster step update
+            function mon_step(){
+                for(let i=0;i<monsters.length;i++){
+                    monsters[i].moveTo(player);
+                }
+
+                if(player.hp <= 0)
+                    gameover = true;
+
+                full_render();
+            }
+
+            // dead screen
+            function end_screen(){
+                clearInterval(mi);
+                gameover = true;
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px '+font;
+                ctx.textAlign = 'center';
+                ctx.fillText("The night has opened my eyes", canvas.width/2, canvas.height/2);
+                ctx.fillStyle = "#343434";
+                ctx.fillText("Press [R] to restart", canvas.width/2, canvas.height/2+30);
+
+            }
+
+            // win screen
+            function win_screen(){
+                clearInterval(mi);
+                gameover = true;
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ffd133';
+                ctx.font = '20px '+font;
+                ctx.textAlign = 'center';
+                ctx.fillText("There is a light that never goes out", canvas.width/2, canvas.height/2);
+                ctx.fillStyle = "#343434";
+                ctx.fillText("Press [R] to restart", canvas.width/2, canvas.height/2+30);
+
+            }
+            
+            
+            //////  HTML EVENT LISTENERS  //////
+
+            //determine if valud key to press
+            document.body.addEventListener("keydown", function (e) {
+                if(inArr(moveKeySet, e.code) || inArr(actionKeySet, e.code)){
+                    keys[e.code] = true;
+                    if(can_step)
+                        play_step();
+                }
+            });
+
+            //check for key released
+            document.body.addEventListener("keyup", function (e) {
+                if(inArr(moveKeySet, e.code) || inArr(actionKeySet, e.code)){
+                    keys[e.code] = false;
+                    can_step = true;
+                }
+            });
+
+            //prevent scrolling with the game
+            window.addEventListener("keydown", function(e) {
+                // space and arrow keys
+                if(([32, 37, 38, 39, 40].indexOf(e.code) > -1)){
+                    e.preventDefault();
+                }
+            }, false);
+
+
+        </script>
+	</body>
+</html>
