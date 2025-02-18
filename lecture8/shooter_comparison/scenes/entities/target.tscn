@@ -1,0 +1,23 @@
+[gd_scene load_steps=4 format=3 uid="uid://dcnqwp3ymlr8a"]
+
+[ext_resource type="Texture2D" uid="uid://bj7o4tqqc7eyt" path="res://assets/sprites.png" id="1_kivno"]
+[ext_resource type="Script" path="res://scripts/target.gd" id="1_oycbu"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_53t7j"]
+radius = 9.0
+
+[node name="Target" type="Area2D" groups=["target"]]
+script = ExtResource("1_oycbu")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_kivno")
+region_enabled = true
+region_rect = Rect2(16, 0, 16, 16)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." groups=["target"]]
+shape = SubResource("CircleShape2D_53t7j")
+
+[node name="RegenTimer" type="Timer" parent="."]
+wait_time = 0.5
+
+[connection signal="timeout" from="RegenTimer" to="." method="_on_regen_timer_timeout"]

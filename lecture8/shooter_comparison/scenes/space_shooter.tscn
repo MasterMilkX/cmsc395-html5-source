@@ -1,0 +1,55 @@
+[gd_scene load_steps=5 format=3 uid="uid://be3j3va8kbome"]
+
+[ext_resource type="PackedScene" uid="uid://b5hqeoy2l1kyb" path="res://scenes/entities/ship.tscn" id="1_t8gfi"]
+[ext_resource type="PackedScene" uid="uid://dcnqwp3ymlr8a" path="res://scenes/entities/target.tscn" id="2_p5qj4"]
+
+[sub_resource type="SegmentShape2D" id="SegmentShape2D_ugq8a"]
+b = Vector2(0, 240)
+
+[sub_resource type="SegmentShape2D" id="SegmentShape2D_mwkic"]
+b = Vector2(180, 0)
+
+[node name="space-shooter" type="Node2D"]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(79, 107)
+zoom = Vector2(3, 3)
+
+[node name="Ship" parent="." instance=ExtResource("1_t8gfi")]
+position = Vector2(80, 189)
+
+[node name="Limits" type="Node" parent="."]
+
+[node name="Left" type="StaticBody2D" parent="Limits"]
+position = Vector2(0, -13)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Limits/Left"]
+shape = SubResource("SegmentShape2D_ugq8a")
+
+[node name="Right" type="StaticBody2D" parent="Limits"]
+position = Vector2(159, -9)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Limits/Right"]
+shape = SubResource("SegmentShape2D_ugq8a")
+
+[node name="Bottom" type="StaticBody2D" parent="Limits"]
+position = Vector2(-1, 214)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Limits/Bottom"]
+shape = SubResource("SegmentShape2D_mwkic")
+
+[node name="Top" type="StaticBody2D" parent="Limits"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Limits/Top"]
+shape = SubResource("SegmentShape2D_mwkic")
+
+[node name="Targets" type="Node" parent="."]
+
+[node name="Target" parent="Targets" instance=ExtResource("2_p5qj4")]
+position = Vector2(20, 25)
+
+[node name="Target3" parent="Targets" instance=ExtResource("2_p5qj4")]
+position = Vector2(80, 25)
+
+[node name="Target2" parent="Targets" instance=ExtResource("2_p5qj4")]
+position = Vector2(140, 25)
