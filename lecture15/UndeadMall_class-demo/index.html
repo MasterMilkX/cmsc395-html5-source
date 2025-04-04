@@ -1,0 +1,38 @@
+<html>
+	<head>
+		<title>Undead Mall</title>
+		<style>
+			body{
+				background-color:#343434;
+				text-align: center;
+			}
+			#game{
+				width:960px;
+				height:640px;
+				border:2px solid #ffffff;
+				background-color:#000000;
+				padding-left: 0;
+				padding-right: 0;
+				margin-left: auto;
+				margin-right: auto;
+				margin-top:1em;
+                font-family: monospace;
+
+				/* scale up pixels */
+				image-rendering: -moz-crisp-edges;
+		        image-rendering: -webkit-crisp-edges;
+		        image-rendering: pixelated;
+		        image-rendering: crisp-edges;
+			}
+
+			@font-face {font-family: Fixedsys;src: url("FSEX300.ttf");}
+		</style>
+		<script src="entities.js"></script>
+		<script src="pcg.js"></script>
+	</head>
+	<body onload="reset()">
+		<!--<div id="debugBar"><p id="debug" style="color:white">...</p></div>-->
+		<canvas id='game'>Browser does not support HTML5 canvas</canvas>
+		<script src="code.js"></script>
+	</body>
+</html>
